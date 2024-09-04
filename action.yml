@@ -164,7 +164,7 @@ runs:
         echo "SKIP_COMPOSER_INSTALL=$([ "${{ inputs.skip-composer-install }}" = "true" ] && echo "true" || echo "false")" >> $GITHUB_ENV
         echo "SKIP_NPM_INSTALL=$([ "${{ inputs.skip-npm-install }}" = "true" ] && echo "true" || echo "false")" >> $GITHUB_ENV
         echo "BUILT_BRANCH=${{ steps.extract-branch.outputs.value }}-built" >> $GITHUB_ENV
-        echo "VERSION_TAG="${{ steps.extract-tag-name.outputs.value }}" >> $GITHUB_ENV
+        echo "VERSION_TAG=$( [ ! -z "${{ steps.extract-tag-name.outputs.value }}" ] && echo "${{ steps.extract-tag-name.outputs.value }}" || echo "false")" >> $GITHUB_ENV
 
     - name: Composer Install
       if: inputs.skip-composer-install != 'true'
