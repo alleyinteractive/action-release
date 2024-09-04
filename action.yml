@@ -209,20 +209,19 @@ runs:
         fi
 
         echo "Removing untracked files"
-        git -C "$GITHUB_WORKSPACE" ls-files -i -c --exclude-standard . | xargs -r git -C "$GITHUB_WORKSPACE" rm --cached
+        git -C "$GITHUB_WORKSPACE" -C "$GITHUB_WORKSPACE" ls-files -i -c --exclude-standard . | xargs -r git -C "$GITHUB_WORKSPACE" rm --cached
 
-        echo
-        git checkout -b $BUILT_BRANCH
+        git -C "$GITHUB_WORKSPACE" checkout -b $BUILT_BRANCH
 
-        git add -A
+        git -C "$GITHUB_WORKSPACE" add -A
 
         if [[ $CREATING_RELEASE == "true" ]]; then
-          git commit -m "Built changes for $VERSION_TAG from $CURRENT_BRANCH $GITHUB_SHA"
+          git -C "$GITHUB_WORKSPACE" commit -m "Built changes for $VERSION_TAG from $CURRENT_BRANCH $GITHUB_SHA"
         else
-          git commit -m "Built changes from $CURRENT_BRANCH $GITHUB_SHA"
+          git -C "$GITHUB_WORKSPACE" commit -m "Built changes from $CURRENT_BRANCH $GITHUB_SHA"
         fi
 
-        git push --force -u origin "${BUILT_BRANCH}"
+        git -C "$GITHUB_WORKSPACE" push --force -u origin "${BUILT_BRANCH}"
 
     - name: Create release for built branch
       if: steps.extract-is-built-branch.outputs.value == 'false' && steps.extract-branch.outputs.value != 'false' && github.repository != 'alleyinteractive/create-wordpress-plugin' && steps.extract-version.outputs.value != 'false' && steps.extract-tag-exists.outputs.value == 'false'
