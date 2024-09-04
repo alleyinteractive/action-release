@@ -197,6 +197,10 @@ runs:
         git config --global user.email "$GITHUB_ACTOR@users.noreply.github.com"
         git config --global user.name "$GITHUB_ACTOR"
 
+        cd $GITHUB_WORKSPACE
+
+        echo "BUILT_BRANCH: $BUILT_BRANCH"
+
         rm -rf .gitignore docker_tag output.log
 
         # Delete the local branch if it exists
