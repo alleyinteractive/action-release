@@ -33,7 +33,10 @@ on:
 
 jobs:
   release:
-    uses: alleyinteractive/action-release@develop
+    name: "Create Release"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: alleyinteractive/action-release@feature
 ```
 
 ## Inputs
