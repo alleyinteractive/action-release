@@ -163,7 +163,7 @@ runs:
         echo "SKIP_BUILD=$([ "${{ inputs.skip-build }}" = "true" ] && echo "true" || echo "false")" >> $GITHUB_ENV
         echo "SKIP_COMPOSER_INSTALL=$([ "${{ inputs.skip-composer-install }}" = "true" ] && echo "true" || echo "false")" >> $GITHUB_ENV
         echo "SKIP_NPM_INSTALL=$([ "${{ inputs.skip-npm-install }}" = "true" ] && echo "true" || echo "false")" >> $GITHUB_ENV
-        echo "BUILT_BRANCH="${{ steps.extract-version.outputs.value }}-built" >> $GITHUB_ENV
+        echo "BUILT_BRANCH="${{ steps.extract-branch.outputs.value }}-built" >> $GITHUB_ENV
         echo "VERSION_TAG="${{ steps.extract-tag-name.outputs.value }}" >> $GITHUB_ENV
 
     - name: Composer Install
@@ -209,19 +209,20 @@ runs:
         fi
 
         echo "Removing untracked files"
-        git -C "$GITHUB_WORKSPACE" -C "$GITHUB_WORKSPACE" ls-files -i -c --exclude-standard . | xargs -r git -C "$GITHUB_WORKSPACE" rm --cached
+        git ls-files -i -c --exclude-standard . | xargs git rm --cached
 
-        git -C "$GITHUB_WORKSPACE" checkout -b $BUILT_BRANCH
+        echo "Checking out built branch"
+        git checkout -b $BUILT_BRANCH
 
-        git -C "$GITHUB_WORKSPACE" add -A
+        git add -A
 
         if [[ $CREATING_RELEASE == "true" ]]; then
-          git -C "$GITHUB_WORKSPACE" commit -m "Built changes for $VERSION_TAG from $CURRENT_BRANCH $GITHUB_SHA"
+          git commit -m "Built changes for $VERSION_TAG from $CURRENT_BRANCH $GITHUB_SHA"
         else
-          git -C "$GITHUB_WORKSPACE" commit -m "Built changes from $CURRENT_BRANCH $GITHUB_SHA"
+          git commit -m "Built changes from $CURRENT_BRANCH $GITHUB_SHA"
         fi
 
-        git -C "$GITHUB_WORKSPACE" push --force -u origin "${BUILT_BRANCH}"
+        git push --force -u origin "${BUILT_BRANCH}"
 
     - name: Create release for built branch
       if: steps.extract-is-built-branch.outputs.value == 'false' && steps.extract-branch.outputs.value != 'false' && github.repository != 'alleyinteractive/create-wordpress-plugin' && steps.extract-version.outputs.value != 'false' && steps.extract-tag-exists.outputs.value == 'false'
