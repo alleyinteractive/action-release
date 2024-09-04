@@ -12,6 +12,10 @@ inputs:
     description: 'Specify whether to create a draft release.'
     required: false
     default: 'false'
+  github-token:
+    description: 'Specify the GitHub token to use.'
+    required: false
+    default: ''
   node-version:
     description: 'Specify the version of Node.js to use.'
     required: false
@@ -39,7 +43,7 @@ runs:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
-        # token: ${{ secrets.GH_TOKEN || github.token }}
+        token: ${{ inputs.github-token || github.token }}
 
     # Extract data about the project.
     # The format is:
@@ -159,13 +163,12 @@ runs:
     - name: Set environment variables
       shell: bash
       run: |
-        # TODO: Set GITHUB_TOKEN
+        echo "GITHUB_TOKEN=$([ ! -z "${{ inputs.github-token }}"] && echo "${{ inputs.github-token }}" || echo "${{ github.token }}")" >> $GITHUB_ENV
         echo "SKIP_BUILD=$([ "${{ inputs.skip-build }}" = "true" ] && echo "true" || echo "false")" >> $GITHUB_ENV
         echo "SKIP_COMPOSER_INSTALL=$([ "${{ inputs.skip-composer-install }}" = "true" ] && echo "true" || echo "false")" >> $GITHUB_ENV
         echo "SKIP_NPM_INSTALL=$([ "${{ inputs.skip-npm-install }}" = "true" ] && echo "true" || echo "false")" >> $GITHUB_ENV
         echo "BUILT_BRANCH=${{ steps.extract-branch.outputs.value }}-built" >> $GITHUB_ENV
-        echo "VERSION_TAG=$( [ ! -z "${{ steps.extract-tag-name.outputs.value }}" ] && echo "${{ steps.extract-tag-name.outputs.value }}" || echo "false")" >> $GITHUB_ENV
-
+        echo "VERSION_TAG=$([ ! -z "${{ steps.extract-tag-name.outputs.value }}" ] && echo "${{ steps.extract-tag-name.outputs.value }}" || echo "false")" >> $GITHUB_ENV
     - name: Composer Install
       if: inputs.skip-composer-install != 'true'
       uses: alleyinteractive/action-test-php@develop
