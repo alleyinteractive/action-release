@@ -206,6 +206,8 @@ runs:
           mv .distignore .gitignore
         fi
 
+        echo "Removing untracked files"
+        git ls-files -i -c --exclude-standard .
         git ls-files -i -c --exclude-standard . | xargs git rm --cached
 
         git checkout -b $BUILT_BRANCH
