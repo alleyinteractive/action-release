@@ -59,6 +59,12 @@ jobs:
 - Accepts a boolean string
 - Defaults to `false`.
 
+### `github-token`
+
+- Specify the GitHub token to use.
+- Accepts a string.
+- Defaults to `${{ github.token }}`.
+
 ### `node-version`
 
 - Specify the Node.js version to use.
