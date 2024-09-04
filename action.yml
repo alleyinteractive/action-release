@@ -1,0 +1,241 @@
+name: 'Release'
+description: 'Create build releases of your create-wordpress-plugin WordPress projects.'
+branding:
+  icon: 'package'
+  color: 'blue'
+inputs:
+  build-command:
+    description: 'Specify the command to run for build.'
+    required: false
+    default: 'npm run build'
+  draft:
+    description: 'Specify whether to create a draft release.'
+    required: false
+    default: 'false'
+  node-version:
+    description: 'Specify the version of Node.js to use.'
+    required: false
+    default: 'lts/*'
+  php-version:
+    description: 'Specify the version of PHP to use.'
+    required: false
+    default: '8.1'
+  skip-build:
+    description: 'Specify whether to skip the build step.'
+    required: false
+    default: 'false'
+  skip-composer-install:
+    description: 'Specify whether to skip the composer install step.'
+    required: false
+    default: 'false'
+  skip-npm-install:
+    description: 'Specify whether to skip the npm install step.'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        # token: ${{ secrets.GH_TOKEN || github.token }}
+
+    # Extract data about the project.
+    # The format is:
+    #   id: extract-data-name
+    #   Outputted to value="..."
+    #   Referenced as steps.extract-data-name.outputs.value.
+
+    - name: Extract plugin version
+      shell: bash
+      id: extract-version
+      run: |
+        PACKAGE_VERSION=""
+        PLUGIN_NAME=$(basename $(pwd))
+
+        echo "Using Plugin Name: $PLUGIN_NAME"
+
+        extract-version() {
+          grep -E "Version:\s*[0-9]+\.[0-9]+\.[0-9]+" $1 | grep -Eo "[0-9]+\.[0-9]+\.[0-9]+" | head -1
+        }
+
+        if [ -f "$PLUGIN_NAME.php" ]; then
+          PACKAGE_VERSION=$(extract-version "$PLUGIN_NAME.php")
+        elif [ -f "plugin.php" ]; then
+          PACKAGE_VERSION=$(extract-version "plugin.php")
+        fi
+
+        if [ -f composer.json ] && [ -z "$PACKAGE_VERSION" ]; then
+          PACKAGE_VERSION=$(cat composer.json | jq -r '.version')
+
+          if [ "$PACKAGE_VERSION" = "null" ]; then
+            PACKAGE_VERSION=""
+          fi
+        fi
+
+        if [ -f package.json ] && [ -z "$PACKAGE_VERSION" ]; then
+          PACKAGE_VERSION=$(cat package.json | jq -r '.version')
+
+          if [ "$PACKAGE_VERSION" = "null" ]; then
+            PACKAGE_VERSION=""
+          fi
+        fi
+
+        # Validate that we have a semver version number
+        if [ -n "$PACKAGE_VERSION" ]; then
+          if ! [[ "$PACKAGE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            echo "Invalid version number: $PACKAGE_VERSION"
+            exit 1
+          fi
+        fi
+
+        # Ignore the version if it's 0.0.0
+        if [ "$PACKAGE_VERSION" = "0.0.0" ]; then
+          PACKAGE_VERSION=""
+        fi
+
+        echo "Package Version: $PACKAGE_VERSION"
+
+        if [ -z $PACKAGE_VERSION ]; then
+          echo "value=false" >> $GITHUB_OUTPUT
+        else
+          echo "value=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Extract branch name
+      shell: bash
+      run: echo "value=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+      id: extract-branch
+
+    - name: Check if this is a built branch
+      id: extract-is-built-branch
+      shell: bash
+      run: |
+        if [[ ${{ steps.extract-branch.outputs.value }} =~ -built$ ]]; then
+          echo "value=true" >> $GITHUB_OUTPUT
+        else
+          echo "value=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Compile the tag name from the version
+      id: extract-tag-name
+      shell: bash
+      if: steps.extract-version.outputs.value != 'false'
+      run: echo "value=v${{ steps.extract-version.outputs.value }}" >> $GITHUB_OUTPUT
+
+    - name: Check if the version already exists as a tag
+      id: extract-tag-exists
+      shell: bash
+      if: steps.extract-version.outputs.value != 'false' && steps.extract-tag-name.outputs.value
+      run: |
+        if [ -z "$(git tag -l ${{ steps.extract-tag-name.outputs.value }})" ]; then
+          echo "value=false" >> $GITHUB_OUTPUT
+        else
+          echo "value=true" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Extract previous tag version
+      id: extract-previous-tag
+      shell: bash
+      if: steps.extract-tag-exists.outputs.value == 'false' && steps.extract-version.outputs.value != 'false'
+      run: |
+        # Get the release tag for comparison
+        PREVIOUS_TAG=$(git describe --tags $(git rev-list --tags --max-count=1) 2>/dev/null || echo "")
+
+        # If there is no previous tag, then we can't compare
+        if [ -z "$PREVIOUS_TAG" ]; then
+          echo "value=false" >> $GITHUB_OUTPUT
+        else
+          echo "value=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Check if the project has front-end assets
+      shell: bash
+      id: extract-has-node-assets
+      run: |
+        [[ -f package.json ]] && echo "value=true" >> $GITHUB_OUTPUT || echo "value=false" >> $GITHUB_OUTPUT
+
+    - name: Set environment variables
+      shell: bash
+      run: |
+        # TODO: Set GITHUB_TOKEN
+        echo "SKIP_BUILD=$([ "${{ inputs.skip-build }}" = "true" ] && echo "true" || echo "false")" >> $GITHUB_ENV
+        echo "SKIP_COMPOSER_INSTALL=$([ "${{ inputs.skip-composer-install }}" = "true" ] && echo "true" || echo "false")" >> $GITHUB_ENV
+        echo "SKIP_NPM_INSTALL=$([ "${{ inputs.skip-npm-install }}" = "true" ] && echo "true" || echo "false")" >> $GITHUB_ENV
+        echo "BUILT_BRANCH=$( "${{ steps.extract-version.outputs.value }}-built" ) >> $GITHUB_ENV
+        echo "VERSION_TAG=$( "${{ steps.extract-tag-name.outputs.value }}" )" >> $GITHUB_ENV
+
+    - name: Composer Install
+      if: inputs.skip-composer-install != 'true'
+      uses: alleyinteractive/action-test-php@develop
+      with:
+        php-version: '${{ inputs.php-version }}'
+        skip-audit: 'true'
+        skip-services: 'true'
+        skip-test: 'true'
+        skip-wordpress-install: 'true'
+
+    - name: NPM Install and Build
+      uses: alleyinteractive/action-test-node@develop
+      if: extract-has-node-assets.outputs.value == 'true'
+      with:
+        build-command: '${{ inputs.build-command }}'
+        node-version: '${{ inputs.node-version }}'
+        skip-audit: 'true'
+        skip-test: 'true'
+
+    - name: Push to ${{ steps.extract-branch.outputs.value }}-built branch
+      if: steps.extract-is-built-branch.outputs.value == 'false' && steps.extract-branch.outputs.value != 'false' && github.repository != 'alleyinteractive/create-wordpress-plugin'
+      shell: bash
+      env:
+        CURRENT_BRANCH: '${{ steps.extract-branch.outputs.value }}'
+        CREATING_RELEASE: ${{ steps.extract-version.outputs.value != 'false' && steps.extract-tag-exists.outputs.value == 'false' && 'true' }}
+      run: |
+        git config --global user.email "$GITHUB_ACTOR@users.noreply.github.com"
+        git config --global user.name "$GITHUB_ACTOR"
+
+        rm -rf .gitignore docker_tag output.log
+
+        # Clear out the .gitignore file if .deployignore exists
+        if [[ -e "$GITHUB_WORKSPACE/.deployignore" ]]; then
+          echo "Replacing .gitignore with .deployignore"
+          mv .deployignore .gitignore
+        elif [[ -e "$GITHUB_WORKSPACE/.distignore" ]]; then
+          echo "Replacing .gitignore with .distignore"
+          mv .distignore .gitignore
+        fi
+
+        git ls-files -i -c --exclude-standard | xargs git rm --cached
+
+        git checkout -b $BUILT_BRANCH
+
+        git add -A
+
+        if [[ $CREATING_RELEASE == "true" ]]; then
+          git commit -m "Built changes for $VERSION_TAG from $CURRENT_BRANCH $GITHUB_SHA"
+        else
+          git commit -m "Built changes from $CURRENT_BRANCH $GITHUB_SHA"
+        fi
+
+        git push --force -u origin "${BUILT_BRANCH}"
+
+    - name: Create release for built branch
+      if: steps.extract-is-built-branch.outputs.value == 'false' && steps.extract-branch.outputs.value != 'false' && github.repository != 'alleyinteractive/create-wordpress-plugin' && steps.extract-version.outputs.value != 'false' && steps.extract-tag-exists.outputs.value == 'false'
+      shell: bash
+      env:
+        PREVIOUS_TAG_VERSION: '${{ steps.extract-previous-tag.outputs.value }}'
+      run: |
+        if [ "$PREVIOUS_TAG_VERSION" == "false" ]; then
+          if [[ $DRAFT_RELEASE == "true" ]]; then
+            gh release create $VERSION_TAG --target "$BUILT_BRANCH" -t "$VERSION_TAG" --generate-notes -d --latest
+          else
+            gh release create $VERSION_TAG --target "$BUILT_BRANCH" -t "$VERSION_TAG" --generate-notes --latest
+          fi
+        else
+          if [[ $DRAFT_RELEASE == "true" ]]; then
+            gh release create $VERSION_TAG --target "$BUILT_BRANCH" -t "$VERSION_TAG" --generate-notes -d --latest --notes-start-tag "$PREVIOUS_TAG_VERSION"
+          else
+            gh release create $VERSION_TAG --target "$BUILT_BRANCH" -t "$VERSION_TAG" --generate-notes --latest --notes-start-tag "$PREVIOUS_TAG_VERSION"
+          fi
+        fi

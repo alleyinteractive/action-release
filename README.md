@@ -52,17 +52,23 @@ jobs:
 - Accepts a boolean string
 - Defaults to `false`.
 
-### `node`
+### `node-version`
 
 - Specify the Node.js version to use.
 - Accepts a string.
 - Defaults to `lts/*`.
 
-### `php`
+### `php-version`
 
 - Specify the PHP version to use.
 - Accepts a string.
 - Defaults to `'8.1'`.
+
+### `skip-build`
+
+- Specify if the build step should be skipped.
+- Accepts a boolean string.
+- Defaults to `'false'`.
 
 ### `skip-composer-install`
 
