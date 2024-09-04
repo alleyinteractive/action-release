@@ -199,6 +199,9 @@ runs:
 
         rm -rf .gitignore docker_tag output.log
 
+        # Delete the local branch if it exists
+        git branch -D $BUILT_BRANCH || true
+
         # Clear out the .gitignore file if .deployignore exists
         if [[ -e "$GITHUB_WORKSPACE/.deployignore" ]]; then
           echo "Replacing .gitignore with .deployignore"
