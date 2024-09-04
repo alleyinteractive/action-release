@@ -178,7 +178,7 @@ runs:
 
     - name: NPM Install and Build
       uses: alleyinteractive/action-test-node@develop
-      if: extract-has-node-assets.outputs.value == 'true'
+      if: steps.extract-has-node-assets.outputs.value == 'true'
       with:
         build-command: '${{ inputs.build-command }}'
         node-version: '${{ inputs.node-version }}'
