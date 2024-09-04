@@ -206,10 +206,7 @@ runs:
           mv .distignore .gitignore
         fi
 
-        ls -al
-        git ls-files -i -c --exclude-standard
-
-        git ls-files -i -c --exclude-standard | xargs git rm --cached
+        git ls-files -i -c --exclude-standard . | xargs git rm --cached
 
         git checkout -b $BUILT_BRANCH
 
