@@ -208,8 +208,9 @@ runs:
 
         echo "Removing untracked files"
         git ls-files -i -c --exclude-standard .
-        git ls-files -i -c --exclude-standard . | xargs git rm --cached
+        git ls-files -i -c --exclude-standard . | grep -v "_runner_file_commands" | xargs git rm --cached
 
+        echo
         git checkout -b $BUILT_BRANCH
 
         git add -A
