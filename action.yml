@@ -193,9 +193,6 @@ runs:
         CREATING_RELEASE: ${{ steps.extract-version.outputs.value != 'false' && steps.extract-tag-exists.outputs.value == 'false' && 'true' }}
       run: |
         set -ex
-
-        ls -al
-
         git config --global user.email "$GITHUB_ACTOR@users.noreply.github.com"
         git config --global user.name "$GITHUB_ACTOR"
 
@@ -210,10 +207,7 @@ runs:
           mv .distignore .gitignore
         fi
 
-        echo "Removing untracked files"
         git ls-files -i -c --exclude-standard . | xargs git rm --cached
-
-        echo "Checking out built branch"
         git checkout -b $BUILT_BRANCH
 
         git add -A
@@ -232,6 +226,8 @@ runs:
       env:
         PREVIOUS_TAG_VERSION: '${{ steps.extract-previous-tag.outputs.value }}'
       run: |
+        set -ex
+
         if [ "$PREVIOUS_TAG_VERSION" == "false" ]; then
           if [[ $DRAFT_RELEASE == "true" ]]; then
             gh release create $VERSION_TAG --target "$BUILT_BRANCH" -t "$VERSION_TAG" --generate-notes -d --latest
