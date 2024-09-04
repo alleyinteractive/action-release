@@ -15,28 +15,32 @@ When the plugin's version is incremented on
 the action will push a built version of the plugin to the `*-built` branch and
 then create a release with the built assets. If the plugin's version was not
 incremented, the action will still push the latest changes to the `*-built`
-branch but will not create a release. This does mirror the
-[Built Branch](#built-branch) workflow but is more flexible and allows for
-publishing releases.
+branch but will not create a release. This allows for a single workflow to
+create a built version of a branch as well as a built release.
 
 ## Usage
 
 Example usage in a workflow:
 
 ```yaml
-name: Release
+name: Built Branch and Release
 
 on:
   push:
     branches:
       - develop
+      - main
+      - production
+
+permissions:
+  contents: write
 
 jobs:
   release:
     name: "Create Release"
     runs-on: ubuntu-latest
     steps:
-      - uses: alleyinteractive/action-release@feature
+      - uses: alleyinteractive/action-release@develop
 ```
 
 ## Inputs
