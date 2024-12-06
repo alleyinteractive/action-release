@@ -188,10 +188,9 @@ runs:
       if: inputs.skip-composer-install != 'true' && inputs.skip-composer-require-removal != 'true'
       shell: bash
       run: |
-        cp composer.json composer.json.bak # Backup original
         jq 'del(.require, .["require-dev"])' composer.json > composer.json.tmp
         mv composer.json.tmp composer.json
-        rm -rf composer.lock || true
+        rm -rf composer.lock composer.json.bak || true
 
     - name: NPM Install and Build
       uses: alleyinteractive/action-test-node@develop
