@@ -173,6 +173,7 @@ runs:
       if: inputs.skip-composer-install != 'true'
       uses: alleyinteractive/action-test-php@develop
       with:
+        install-command: 'composer install --prefer-dist --no-interaction --no-progress --no-dev --optimize-autoloader'
         php-version: '${{ inputs.php-version }}'
         skip-audit: 'true'
         skip-services: 'true'
