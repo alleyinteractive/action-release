@@ -32,6 +32,10 @@ inputs:
     description: 'Specify whether to skip the composer install step.'
     required: false
     default: 'false'
+  skip-composer-require-removal:
+    description: 'Skip the removal of the require/require-dev sections in the composer.json file'
+    default: 'false'
+    required: false
   skip-npm-install:
     description: 'Specify whether to skip the npm install step.'
     required: false
@@ -173,11 +177,20 @@ runs:
       if: inputs.skip-composer-install != 'true'
       uses: alleyinteractive/action-test-php@develop
       with:
+        install-command: 'composer install --prefer-dist --no-interaction --no-progress --no-dev --optimize-autoloader'
         php-version: '${{ inputs.php-version }}'
         skip-audit: 'true'
         skip-services: 'true'
         skip-test: 'true'
         skip-wordpress-install: 'true'
+
+    - name: Clear composer require/require-dev
+      if: inputs.skip-composer-install != 'true' && inputs.skip-composer-require-removal != 'true'
+      shell: bash
+      run: |
+        jq 'del(.require, .["require-dev"])' composer.json > composer.json.tmp
+        mv composer.json.tmp composer.json
+        rm -rf composer.lock composer.json.bak || true
 
     - name: NPM Install and Build
       uses: alleyinteractive/action-test-node@develop
