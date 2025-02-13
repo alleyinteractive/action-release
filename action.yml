@@ -23,7 +23,7 @@ inputs:
   php-version:
     description: 'Specify the version of PHP to use.'
     required: false
-    default: '8.1'
+    default: '8.2'
   skip-build:
     description: 'Specify whether to skip the build step.'
     required: false
