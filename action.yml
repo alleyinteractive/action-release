@@ -184,13 +184,15 @@ runs:
         skip-test: 'true'
         skip-wordpress-install: 'true'
 
-    - name: Clear composer require/require-dev
-      if: inputs.skip-composer-install != 'true' && inputs.skip-composer-require-removal != 'true'
-      shell: bash
-      run: |
-        jq 'del(.require, .["require-dev"])' composer.json > composer.json.tmp
-        mv composer.json.tmp composer.json
-        rm -rf composer.lock composer.json.bak || true
+    # Disabled until we are able to address scoped Composer dependencies:
+    # https://github.com/alleyinteractive/create-wordpress-plugin/issues/309
+    # - name: Clear composer require/require-dev
+    #   if: inputs.skip-composer-install != 'true' && inputs.skip-composer-require-removal != 'true'
+    #   shell: bash
+    #   run: |
+    #     jq 'del(.require, .["require-dev"])' composer.json > composer.json.tmp
+    #     mv composer.json.tmp composer.json
+    #     rm -rf composer.lock composer.json.bak || true
 
     - name: NPM Install and Build
       uses: alleyinteractive/action-test-node@develop
