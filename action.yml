@@ -220,8 +220,7 @@ runs:
           echo "Using inputted Node version: $NODE_VERSION"
         fi
 
-        echo "value="$NODE_VERSION" >> $GITHUB_OUTPUT
-
+        echo "value=$NODE_VERSION" >> $GITHUB_OUTPUT
 
     - name: Set environment variables
       shell: bash
