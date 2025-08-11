@@ -75,7 +75,7 @@ jobs:
 
 - Specify the PHP version to use.
 - Accepts a string.
-- Defaults to `'8.1'`.
+- Defaults to `''` and will infer from `composer.json` if available.
 
 ### `skip-build`
 

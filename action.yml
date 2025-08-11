@@ -23,7 +23,7 @@ inputs:
   php-version:
     description: 'Specify the version of PHP to use.'
     required: false
-    default: '8.2'
+    default: ''
   skip-build:
     description: 'Specify whether to skip the build step.'
     required: false
@@ -164,6 +164,32 @@ runs:
       run: |
         [[ -f package.json ]] && echo "value=true" >> $GITHUB_OUTPUT || echo "value=false" >> $GITHUB_OUTPUT
 
+    - name: Extract PHP version from composer.json
+      shell: bash
+      id: extract-php-version
+      env:
+        DEFAULT_PHP_VERSION: '${{ inputs.php-version || ''8.2'' }}'
+      run: |
+        PHP_VERSION="$DEFAULT_PHP_VERSION"
+
+        if [ -f composer.json ]; then
+          PHP_REQUIREMENT=$(cat composer.json | jq -r '.require.php // empty' 2>/dev/null || echo "")
+
+          PHP_VERSION=$(echo "$PHP_REQUIREMENT" | sed 's/^\^//')
+          PHP_VERSION=$(echo "$PHP_VERSION" | sed 's/^\(\^\|>=\)//')
+        else
+          echo "No composer.json found, using input default: $PHP_VERSION"
+        fi
+
+        if [[ -z "$PHP_VERSION" ]]; then
+          echo "Falling back to default PHP version..."
+          PHP_VERSION="$DEFAULT_PHP_VERSION"
+        else
+          echo "Using inferred PHP version: $PHP_VERSION"
+        fi
+
+        echo "value=$PHP_VERSION" >> $GITHUB_OUTPUT
+
     - name: Set environment variables
       shell: bash
       run: |
@@ -178,7 +204,7 @@ runs:
       uses: alleyinteractive/action-test-php@develop
       with:
         install-command: 'composer install --prefer-dist --no-interaction --no-progress --no-dev --optimize-autoloader'
-        php-version: '${{ inputs.php-version }}'
+        php-version: '${{ steps.extract-php-version.outputs.value }}'
         skip-audit: 'true'
         skip-services: 'true'
         skip-test: 'true'
