@@ -69,13 +69,13 @@ jobs:
 
 - Specify the Node.js version to use.
 - Accepts a string.
-- Defaults to `lts/*`.
+- Defaults to `''` and will use the latest LTS version if not specified.
 
 ### `php-version`
 
 - Specify the PHP version to use.
 - Accepts a string.
-- Defaults to `'8.1'`.
+- Defaults to `''` and will infer from `composer.json` if available. If unable to infer, defaults to `8.2`.
 
 ### `skip-build`
 

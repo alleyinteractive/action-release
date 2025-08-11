@@ -2,6 +2,10 @@
 
 All notable changes to `action-release` will be documented in this file.
 
+## 0.4.0
+
+- Infer the PHP version from the `composer.json` file if not explicitly set.
+
 ## 0.3.0
 
 - Revert the clearing out of `require`/`require-dev` from Composer.

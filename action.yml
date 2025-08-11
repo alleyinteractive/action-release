@@ -19,11 +19,11 @@ inputs:
   node-version:
     description: 'Specify the version of Node.js to use.'
     required: false
-    default: 'lts/*'
+    default: ''
   php-version:
     description: 'Specify the version of PHP to use.'
     required: false
-    default: '8.2'
+    default: ''
   skip-build:
     description: 'Specify whether to skip the build step.'
     required: false
@@ -164,6 +164,64 @@ runs:
       run: |
         [[ -f package.json ]] && echo "value=true" >> $GITHUB_OUTPUT || echo "value=false" >> $GITHUB_OUTPUT
 
+    - name: Extract PHP version from composer.json
+      shell: bash
+      id: extract-php-version
+      env:
+        DEFAULT_PHP_VERSION: '8.2'
+        PHP_VERSION: '${{ inputs.php-version }}'
+      run: |
+        if [[ -z "$PHP_VERSION" ]]; then
+          PHP_VERSION="$DEFAULT_PHP_VERSION"
+
+          if [ -f composer.json ]; then
+            PHP_REQUIREMENT=$(cat composer.json | jq -r '.require.php // empty' 2>/dev/null || echo "")
+
+            PHP_VERSION=$(echo "$PHP_REQUIREMENT" | sed 's/^\^//')
+            PHP_VERSION=$(echo "$PHP_VERSION" | sed 's/^\(\^\|>=\)//')
+          else
+            echo "No composer.json found, using input default: $PHP_VERSION"
+          fi
+
+          if [[ -z "$PHP_VERSION" ]]; then
+            echo "Falling back to default PHP version: $DEFAULT_PHP_VERSION"
+            PHP_VERSION="$DEFAULT_PHP_VERSION"
+          else
+            echo "Using inferred PHP version: $PHP_VERSION"
+          fi
+        else
+          echo "Using inputted PHP version: $PHP_VERSION"
+        fi
+
+        echo "value=$PHP_VERSION" >> $GITHUB_OUTPUT
+
+    - name: Extract Node version from package.json
+      if: steps.extract-has-node-assets.outputs.value == 'true' && inputs.skip-npm-install != 'true'
+      id: extract-node-version
+      shell: bash
+      env:
+        DEFAULT_NODE_VERSION: 'lts/*'
+        NODE_VERSION: '${{ inputs.node-version  }}'
+      run: |
+        if [ -z "$NODE_VERSION" ]; then
+          NODE_VERSION="$DEFAULT_NODE_VERSION"
+
+          if [ -f package.json ]; then
+            NODE_VERSION=$(cat package.json | jq -r '.engines.node // empty' 2>/dev/null || echo "")
+
+            if [[ -z "$NODE_VERSION" ]]; then
+              echo "Unable to find node version, falling back to default version: $DEFAULT_NODE_VERSION"
+              NODE_VERSION="$DEFAULT_NODE_VERSION"
+            else
+              echo "Using Node version from package.json: $NODE_VERSION"
+            fi
+          fi
+        else
+          echo "Using inputted Node version: $NODE_VERSION"
+        fi
+
+        echo "value=$NODE_VERSION" >> $GITHUB_OUTPUT
+
     - name: Set environment variables
       shell: bash
       run: |
@@ -178,7 +236,7 @@ runs:
       uses: alleyinteractive/action-test-php@develop
       with:
         install-command: 'composer install --prefer-dist --no-interaction --no-progress --no-dev --optimize-autoloader'
-        php-version: '${{ inputs.php-version }}'
+        php-version: '${{ steps.extract-php-version.outputs.value }}'
         skip-audit: 'true'
         skip-services: 'true'
         skip-test: 'true'
@@ -199,7 +257,7 @@ runs:
       if: steps.extract-has-node-assets.outputs.value == 'true' && inputs.skip-npm-install != 'true'
       with:
         build-command: '${{ inputs.build-command }}'
-        node-version: '${{ inputs.node-version }}'
+        node-version: '${{ steps.extract-node-version.outputs.value }}'
         skip-audit: 'true'
         skip-test: 'true'
 
