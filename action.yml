@@ -274,15 +274,16 @@ runs:
         rm -rf docker_tag output.log
 
         # Clear out the .gitignore file if .deployignore exists
-        if [[ -e "$GITHUB_WORKSPACE/.deployignore" ]]; then
+        if [[ -f "$GITHUB_WORKSPACE/.deployignore" ]]; then
           echo "Replacing .gitignore with .deployignore"
           mv .deployignore .gitignore
-        elif [[ -e "$GITHUB_WORKSPACE/.distignore" ]]; then
+          git ls-files -i -c --exclude-standard . | xargs git rm --cached
+        elif [[ -f "$GITHUB_WORKSPACE/.distignore" ]]; then
           echo "Replacing .gitignore with .distignore"
           mv .distignore .gitignore
+          git ls-files -i -c --exclude-standard . | xargs git rm --cached
         fi
 
-        git ls-files -i -c --exclude-standard . | xargs git rm --cached
         git checkout -b $BUILT_BRANCH
 
         git add -A
