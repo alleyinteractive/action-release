@@ -2,6 +2,10 @@
 
 All notable changes to `action-release` will be documented in this file.
 
+## 0.5.0
+
+- Only delete files from Git if the `.deployignore`/`.distignore` file is present.
+
 ## 0.4.0
 
 - Infer the PHP version from the `composer.json` file if not explicitly set.
