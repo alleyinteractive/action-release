@@ -40,6 +40,10 @@ inputs:
     description: 'Specify whether to skip the npm install step.'
     required: false
     default: 'false'
+  use-changelog-notes:
+    description: 'Use notes from the CHANGELOG.md file (if found) instead of generating release notes.'
+    required: false
+    default: 'true'
 
 runs:
   using: 'composite'
@@ -222,6 +226,29 @@ runs:
 
         echo "value=$NODE_VERSION" >> $GITHUB_OUTPUT
 
+    - name: Extract the changelog notes if requested
+      if: inputs.use-changelog-notes == 'true' && steps.extract-version.outputs.value != 'false'
+      id: extract-changelog-notes
+      shell: bash
+      run: |
+        if [ -f CHANGELOG.md ]; then
+          VERSION_HEADER="## [${{ steps.extract-version.outputs.value }}]"
+          NOTES=$(awk "/$VERSION_HEADER/{flag=1;next}/^## /{flag=0}flag" CHANGELOG.md | sed 's/^### //g' | sed 's/^## //g' | sed '/^$/d')
+
+          if [ -n "$NOTES" ]; then
+            echo "Changelog notes found for version ${{ steps.extract-version.outputs.value }}"
+            echo "value=$NOTES" >> $GITHUB_OUTPUT
+          else
+            echo "No changelog notes found for version ${{ steps.extract-version.outputs.value }}"
+            echo "value=false" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "No CHANGELOG.md file found."
+          echo "value=false" >> $GITHUB_OUTPUT
+        fi
+
+        exit 1
+
     - name: Set environment variables
       shell: bash
       run: |
@@ -231,6 +258,8 @@ runs:
         echo "SKIP_NPM_INSTALL=$([ "${{ inputs.skip-npm-install }}" = "true" ] && echo "true" || echo "false")" >> $GITHUB_ENV
         echo "BUILT_BRANCH=${{ steps.extract-branch.outputs.value }}-built" >> $GITHUB_ENV
         echo "VERSION_TAG=$([ ! -z "${{ steps.extract-tag-name.outputs.value }}" ] && echo "${{ steps.extract-tag-name.outputs.value }}" || echo "false")" >> $GITHUB_ENV
+        echo "USE_CHANGELOG_NOTES=$([ "${{ inputs.use-changelog-notes }}" = "true" ] && echo "true" || echo "false")" >> $GITHUB_ENV
+
     - name: Composer Install
       if: inputs.skip-composer-install != 'true'
       uses: alleyinteractive/action-test-php@develop
