@@ -226,13 +226,25 @@ runs:
 
         echo "value=$NODE_VERSION" >> $GITHUB_OUTPUT
 
+    - name: Parse the changelog
+      if: inputs.use-changelog-notes == 'true' && steps.extract-version.outputs.value != 'false'
+      id: parse-changelog
+      uses: alleyinteractive/action-changelog-extractor@develop
+      with:
+        version: '${{ steps.extract-version.outputs.value }}'
+
     - name: Extract the changelog notes if requested
       if: inputs.use-changelog-notes == 'true' && steps.extract-version.outputs.value != 'false'
       id: extract-changelog-notes
       shell: bash
       run: |
+        echo "Using changelog notes for version ${{ steps.extract-version.outputs.value }}"
+        echo "Parsed changelog notes: ${{ steps.parse-changelog.outputs.result }}"
+
+        exit 1
+
         if [ -f CHANGELOG.md ]; then
-          VERSION_HEADER="## [${{ steps.extract-version.outputs.value }}]"
+          VERSION_HEADER="## ${{ steps.extract-version.outputs.value }}"
           NOTES=$(awk "/$VERSION_HEADER/{flag=1;next}/^## /{flag=0}flag" CHANGELOG.md | sed 's/^### //g' | sed 's/^## //g' | sed '/^$/d')
 
           if [ -n "$NOTES" ]; then
