@@ -266,6 +266,7 @@ runs:
         echo "BUILT_BRANCH=${{ steps.extract-branch.outputs.value }}-built" >> $GITHUB_ENV
         echo "VERSION_TAG=$([ ! -z "${{ steps.extract-tag-name.outputs.value }}" ] && echo "${{ steps.extract-tag-name.outputs.value }}" || echo "false")" >> $GITHUB_ENV
         echo "USE_CHANGELOG_NOTES=$([ "${{ inputs.use-changelog-notes }}" = "true" ] && [ ! -z "${{ steps.extract-changelog-notes.outputs.value }}" ] && echo "true" || echo "false")" >> $GITHUB_ENV
+        echo "CHANGELOG_CONTENTS=${{ steps.extract-changelog-notes.outputs.value }}" >> $GITHUB_ENV
 
     - name: Composer Install
       if: inputs.skip-composer-install != 'true'
@@ -342,21 +343,29 @@ runs:
         echo "PREVIOUS_TAG_VERSION: $PREVIOUS_TAG_VERSION"
         echo "DRAFT_RELEASE: ${{ inputs.draft }}"
 
-        exit 1
+        if [[ "$USE_CHANGELOG_NOTES" == "true" ]] && [[ -n "$CHANGELOG_CONTENTS" ]]; then
+          echo "$CHANGELOG_CONTENTS" > /tmp/release-notes.md
+          cat /tmp/release-notes.md
 
-        if [[ "$USE_CHANGELOG_NOTES" == "true" ]]; then
+          echo "Stop 0"
+          exit 1
+
           if [[ $DRAFT_RELEASE == "true" ]]; then
-            gh release create $VERSION_TAG --target "$BUILT_BRANCH" -t "$VERSION_TAG" -n "$CHANGELOG_CONTENTS" -d --latest
+            gh release create $VERSION_TAG --target "$BUILT_BRANCH" -t "$VERSION_TAG" -F /tmp/release-notes.md -d --latest
           else
-            gh release create $VERSION_TAG --target "$BUILT_BRANCH" -t "$VERSION_TAG" -n "$CHANGELOG_CONTENTS" --latest
+            gh release create $VERSION_TAG --target "$BUILT_BRANCH" -t "$VERSION_TAG" -F  /tmp/release-notes.md --latest
           fi
         elif [ "$PREVIOUS_TAG_VERSION" == "false" ]; then
+          echo "Stop 1"
+          exit 1
           if [[ $DRAFT_RELEASE == "true" ]]; then
             gh release create $VERSION_TAG --target "$BUILT_BRANCH" -t "$VERSION_TAG" --generate-notes -d --latest
           else
             gh release create $VERSION_TAG --target "$BUILT_BRANCH" -t "$VERSION_TAG" --generate-notes --latest
           fi
         else
+          echo "Stop 2"
+          exit 1
           if [[ $DRAFT_RELEASE == "true" ]]; then
             gh release create $VERSION_TAG --target "$BUILT_BRANCH" -t "$VERSION_TAG" --generate-notes -d --latest --notes-start-tag "$PREVIOUS_TAG_VERSION"
           else
