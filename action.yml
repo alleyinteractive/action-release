@@ -347,25 +347,18 @@ runs:
           echo "$CHANGELOG_CONTENTS" > /tmp/release-notes.md
           cat /tmp/release-notes.md
 
-          echo "Stop 0"
-          exit 1
-
           if [[ $DRAFT_RELEASE == "true" ]]; then
             gh release create $VERSION_TAG --target "$BUILT_BRANCH" -t "$VERSION_TAG" -F /tmp/release-notes.md -d --latest
           else
             gh release create $VERSION_TAG --target "$BUILT_BRANCH" -t "$VERSION_TAG" -F  /tmp/release-notes.md --latest
           fi
         elif [ "$PREVIOUS_TAG_VERSION" == "false" ]; then
-          echo "Stop 1"
-          exit 1
           if [[ $DRAFT_RELEASE == "true" ]]; then
             gh release create $VERSION_TAG --target "$BUILT_BRANCH" -t "$VERSION_TAG" --generate-notes -d --latest
           else
             gh release create $VERSION_TAG --target "$BUILT_BRANCH" -t "$VERSION_TAG" --generate-notes --latest
           fi
         else
-          echo "Stop 2"
-          exit 1
           if [[ $DRAFT_RELEASE == "true" ]]; then
             gh release create $VERSION_TAG --target "$BUILT_BRANCH" -t "$VERSION_TAG" --generate-notes -d --latest --notes-start-tag "$PREVIOUS_TAG_VERSION"
           else
