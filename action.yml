@@ -234,32 +234,16 @@ runs:
         version: '${{ steps.extract-version.outputs.value }}'
 
     - name: Extract the changelog notes if requested
-      if: inputs.use-changelog-notes == 'true' && steps.extract-version.outputs.value != 'false'
+      if: inputs.use-changelog-notes == 'true' && steps.extract-version.outputs.value != 'false' && steps.parse-changelog.outputs.result != ''
       id: extract-changelog-notes
       shell: bash
       run: |
         echo "Using changelog notes for version ${{ steps.extract-version.outputs.value }}"
         echo "Parsed changelog notes: ${{ steps.parse-changelog.outputs.result }}"
-        echo "All outputs from changelog extractor: ${{ toJson(steps.parse-changelog.outputs) }}"
 
-        exit 1
-
-        if [ -f CHANGELOG.md ]; then
-          VERSION_HEADER="## ${{ steps.extract-version.outputs.value }}"
-          NOTES=$(awk "/$VERSION_HEADER/{flag=1;next}/^## /{flag=0}flag" CHANGELOG.md | sed 's/^### //g' | sed 's/^## //g' | sed '/^$/d')
-
-          if [ -n "$NOTES" ]; then
-            echo "Changelog notes found for version ${{ steps.extract-version.outputs.value }}"
-            echo "value=$NOTES" >> $GITHUB_OUTPUT
-          else
-            echo "No changelog notes found for version ${{ steps.extract-version.outputs.value }}"
-            echo "value=false" >> $GITHUB_OUTPUT
-          fi
-        else
-          echo "No CHANGELOG.md file found."
-          echo "value=false" >> $GITHUB_OUTPUT
-        fi
-
+        CHANGELOG_CONTENTS=$(echo '${{ steps.parse-changelog.outputs.result }}' | jq -r '.[0].contents // empty')
+        echo "Changelog contents: $CHANGELOG_CONTENTS"
+        echo "value=$CHANGELOG_CONTENTS" >> $GITHUB_OUTPUT
         exit 1
 
     - name: Set environment variables
