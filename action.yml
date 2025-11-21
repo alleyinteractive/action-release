@@ -238,6 +238,11 @@ runs:
       id: extract-changelog-notes
       shell: bash
       run: |
+        if [ ! -f CHANGELOG.md ]; then
+          echo "🚨 CHANGELOG.md file not found. Skipping changelog extraction."
+          exit 0
+        fi
+
         echo "Using changelog notes for version ${{ steps.extract-version.outputs.value }}"
         echo "Parsed changelog notes: ${{ steps.parse-changelog.outputs.result }}"
 
