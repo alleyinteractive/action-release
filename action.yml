@@ -338,6 +338,10 @@ runs:
       env:
         PREVIOUS_TAG_VERSION: '${{ steps.extract-previous-tag.outputs.value }}'
       run: |
+        echo "USE_CHANGELOG_NOTES: $USE_CHANGELOG_NOTES"
+        echo "PREVIOUS_TAG_VERSION: $PREVIOUS_TAG_VERSION"
+        echo "DRAFT_RELEASE: ${{ inputs.draft }}"
+
         if [[ "$USE_CHANGELOG_NOTES" == "true" ]]; then
           if [[ $DRAFT_RELEASE == "true" ]]; then
             gh release create $VERSION_TAG --target "$BUILT_BRANCH" -t "$VERSION_TAG" -n "$CHANGELOG_CONTENTS" -d --latest
