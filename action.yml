@@ -240,6 +240,7 @@ runs:
       run: |
         echo "Using changelog notes for version ${{ steps.extract-version.outputs.value }}"
         echo "Parsed changelog notes: ${{ steps.parse-changelog.outputs.result }}"
+        echo "All outputs from changelog extractor: ${{ toJson(steps.parse-changelog.outputs) }}"
 
         exit 1
 
