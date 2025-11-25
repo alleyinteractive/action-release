@@ -2,6 +2,10 @@
 
 All notable changes to `action-release` will be documented in this file.
 
+## 0.6.0
+
+- Use the notes from the project's `CHANGELOG.md` for a release if found. 
+
 ## 0.5.0
 
 - Only delete files from Git if the `.deployignore`/`.distignore` file is present.
