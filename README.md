@@ -95,6 +95,11 @@ jobs:
 - Accepts a boolean string.
 - Defaults to `'false'`.
 
+### `use-changelog-notes`
+- Specify if the release notes should be generated from the changelog.
+- Accepts a boolean string.
+- Defaults to `'true'`.
+
 ## Changelog
 
 Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed
