@@ -44,6 +44,10 @@ inputs:
     description: 'Use notes from the CHANGELOG.md file (if found) instead of generating release notes.'
     required: false
     default: 'true'
+  plugin-file:
+    description: 'Specify the main plugin file name (e.g., WCGoal.php) to extract the version from.'
+    required: false
+    default: ''
 
 runs:
   using: 'composite'
@@ -62,6 +66,8 @@ runs:
     - name: Extract plugin version
       shell: bash
       id: extract-version
+      env:
+        PLUGIN_FILE: '${{ inputs.plugin-file }}'
       run: |
         PACKAGE_VERSION=""
         PLUGIN_NAME=$(basename $(pwd))
@@ -72,7 +78,10 @@ runs:
           grep -E "Version:\s*[0-9]+\.[0-9]+\.[0-9]+" $1 | grep -Eo "[0-9]+\.[0-9]+\.[0-9]+" | head -1
         }
 
-        if [ -f "$PLUGIN_NAME.php" ]; then
+        if [ -n "$PLUGIN_FILE" ] && [ -f "$PLUGIN_FILE" ]; then
+          echo "Using specified plugin file: $PLUGIN_FILE"
+          PACKAGE_VERSION=$(extract-version "$PLUGIN_FILE")
+        elif [ -f "$PLUGIN_NAME.php" ]; then
           PACKAGE_VERSION=$(extract-version "$PLUGIN_NAME.php")
         elif [ -f "plugin.php" ]; then
           PACKAGE_VERSION=$(extract-version "plugin.php")

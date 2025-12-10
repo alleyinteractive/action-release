@@ -2,6 +2,10 @@
 
 All notable changes to `action-release` will be documented in this file.
 
+## 0.7.0
+
+- Add `plugin-file` input parameter to specify the main plugin file name for version extraction.
+
 ## 0.6.0
 
 - Use the notes from the project's `CHANGELOG.md` for a release if found. 
