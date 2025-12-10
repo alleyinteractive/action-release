@@ -53,7 +53,7 @@ jobs:
     steps:
       - uses: alleyinteractive/action-release@develop
         with:
-          plugin-file: 'WCGoal.php'
+          plugin-file: 'my-plugin.php'
 ```
 
 ## Inputs
@@ -116,7 +116,7 @@ jobs:
 ### `plugin-file`
 
 - Specify the main plugin file name to extract the version from.
-- Accepts a string (e.g., `'WCGoal.php'`).
+- Accepts a string (e.g., `'my-plugin.php'`).
 - Defaults to `''` (empty). When not specified, the action will look for `<directory-name>.php` first, then fall back to `plugin.php`.
 - Useful when your plugin directory name doesn't match the main plugin file name.
 

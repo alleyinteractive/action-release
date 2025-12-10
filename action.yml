@@ -45,7 +45,7 @@ inputs:
     required: false
     default: 'true'
   plugin-file:
-    description: 'Specify the main plugin file name (e.g., WCGoal.php) to extract the version from.'
+    description: 'Specify the main plugin file name (e.g., my-plugin.php) to extract the version from.'
     required: false
     default: ''
 
