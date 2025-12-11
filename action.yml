@@ -256,14 +256,19 @@ runs:
         echo "Parsed changelog notes: ${{ steps.parse-changelog.outputs.result }}"
 
         CHANGELOG_CONTENTS=$(echo '${{ steps.parse-changelog.outputs.result }}' | jq -r '.[0].contents // empty')
-        echo "Changelog contents: $CHANGELOG_CONTENTS"
+        echo "Changelog contents: (content length: ${#CHANGELOG_CONTENTS} characters)"
 
         if [[ -z "$CHANGELOG_CONTENTS" ]]; then
           echo "🚨 No changelog contents found. Exiting."
           exit 1
         fi
 
-        echo "value=$CHANGELOG_CONTENTS" >> $GITHUB_OUTPUT
+        # Use a delimiter to safely handle special characters in the changelog contents
+        {
+          echo "value<<EOF"
+          echo "$CHANGELOG_CONTENTS"
+          echo "EOF"
+        } >> $GITHUB_OUTPUT
 
     - name: Set environment variables
       shell: bash
@@ -275,7 +280,12 @@ runs:
         echo "BUILT_BRANCH=${{ steps.extract-branch.outputs.value }}-built" >> $GITHUB_ENV
         echo "VERSION_TAG=$([ ! -z "${{ steps.extract-tag-name.outputs.value }}" ] && echo "${{ steps.extract-tag-name.outputs.value }}" || echo "false")" >> $GITHUB_ENV
         echo "USE_CHANGELOG_NOTES=$([ "${{ inputs.use-changelog-notes }}" = "true" ] && [ ! -z "${{ steps.extract-changelog-notes.outputs.value }}" ] && echo "true" || echo "false")" >> $GITHUB_ENV
-        echo "CHANGELOG_CONTENTS=${{ steps.extract-changelog-notes.outputs.value }}" >> $GITHUB_ENV
+        # Use a delimiter to safely handle special characters in the changelog contents
+        {
+          echo "CHANGELOG_CONTENTS<<EOF"
+          echo "${{ steps.extract-changelog-notes.outputs.value }}"
+          echo "EOF"
+        } >> $GITHUB_ENV
 
     - name: Composer Install
       if: inputs.skip-composer-install != 'true'
