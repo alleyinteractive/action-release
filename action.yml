@@ -279,24 +279,13 @@ runs:
         echo "SKIP_NPM_INSTALL=$([ "${{ inputs.skip-npm-install }}" = "true" ] && echo "true" || echo "false")" >> $GITHUB_ENV
         echo "BUILT_BRANCH=${{ steps.extract-branch.outputs.value }}-built" >> $GITHUB_ENV
         echo "VERSION_TAG=$([ ! -z "${{ steps.extract-tag-name.outputs.value }}" ] && echo "${{ steps.extract-tag-name.outputs.value }}" || echo "false")" >> $GITHUB_ENV
-        # Extract changelog contents directly here to preserve special characters
-        if [[ "${{ inputs.use-changelog-notes }}" == "true" && -n "${{ steps.parse-changelog.outputs.result }}" ]]; then
-          CHANGELOG_CONTENTS=$(echo '${{ steps.parse-changelog.outputs.result }}' | jq -r '.[0].contents // empty')
-          if [[ -n "$CHANGELOG_CONTENTS" ]]; then
-            echo "USE_CHANGELOG_NOTES=true" >> $GITHUB_ENV
-            {
-              echo "CHANGELOG_CONTENTS<<EOF"
-              echo "$CHANGELOG_CONTENTS"
-              echo "EOF"
-            } >> $GITHUB_ENV
-          else
-            echo "USE_CHANGELOG_NOTES=false" >> $GITHUB_ENV
-            echo "CHANGELOG_CONTENTS=" >> $GITHUB_ENV
-          fi
-        else
-          echo "USE_CHANGELOG_NOTES=false" >> $GITHUB_ENV
-          echo "CHANGELOG_CONTENTS=" >> $GITHUB_ENV
-        fi
+        echo "USE_CHANGELOG_NOTES=$([ "${{ inputs.use-changelog-notes }}" = "true" ] && [ ! -z "${{ steps.extract-changelog-notes.outputs.value }}" ] && echo "true" || echo "false")" >> $GITHUB_ENV
+        # Use a delimiter to safely handle special characters in the changelog contents
+        {
+          echo "CHANGELOG_CONTENTS<<EOF"
+          echo "${{ steps.extract-changelog-notes.outputs.value }}"
+          echo "EOF"
+        } >> $GITHUB_ENV
 
     - name: Composer Install
       if: inputs.skip-composer-install != 'true'
