@@ -253,7 +253,7 @@ runs:
         fi
 
         echo "Using changelog notes for version ${{ steps.extract-version.outputs.value }}"
-        echo "Parsed changelog notes: ${{ steps.parse-changelog.outputs.result }}"
+        echo "Parsed changelog notes: (JSON length: $(echo '${{ steps.parse-changelog.outputs.result }}' | wc -c) characters)"
 
         CHANGELOG_CONTENTS=$(echo '${{ steps.parse-changelog.outputs.result }}' | jq -r '.[0].contents // empty')
         echo "Changelog contents: (content length: ${#CHANGELOG_CONTENTS} characters)"
