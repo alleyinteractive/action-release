@@ -257,7 +257,7 @@ runs:
 
         # Save the raw JSON to a file to avoid GitHub Actions template processing that strips backticks
         echo '${{ steps.parse-changelog.outputs.result }}' > /tmp/changelog_raw.json
-        
+
         CHANGELOG_CONTENTS=$(cat /tmp/changelog_raw.json | jq -r '.[0].contents // empty')
         echo "Changelog contents: (content length: ${#CHANGELOG_CONTENTS} characters)"
 
@@ -268,7 +268,7 @@ runs:
 
         # Save the extracted content to a file to preserve special characters
         echo "$CHANGELOG_CONTENTS" > /tmp/changelog_content.txt
-        
+
         # Set a simple flag in GITHUB_OUTPUT
         echo "value=success" >> $GITHUB_OUTPUT
 
@@ -285,7 +285,7 @@ runs:
         if [[ "${{ inputs.use-changelog-notes }}" == "true" && "${{ steps.extract-changelog-notes.outputs.value }}" == "success" ]]; then
           if [ -f /tmp/changelog_content.txt ]; then
             CHANGELOG_CONTENTS=$(cat /tmp/changelog_content.txt)
-            
+
             if [[ -n "$CHANGELOG_CONTENTS" ]]; then
               echo "USE_CHANGELOG_NOTES=true" >> $GITHUB_ENV
               {
@@ -297,7 +297,7 @@ runs:
               echo "USE_CHANGELOG_NOTES=false" >> $GITHUB_ENV
               echo "CHANGELOG_CONTENTS=" >> $GITHUB_ENV
             fi
-            
+
             # Clean up temporary files
             rm -f /tmp/changelog_raw.json /tmp/changelog_content.txt
           else
