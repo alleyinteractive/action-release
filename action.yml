@@ -255,7 +255,10 @@ runs:
         echo "Using changelog notes for version ${{ steps.extract-version.outputs.value }}"
         echo "Parsed changelog notes: (JSON length: $(echo '${{ steps.parse-changelog.outputs.result }}' | wc -c) characters)"
 
-        CHANGELOG_CONTENTS=$(echo '${{ steps.parse-changelog.outputs.result }}' | jq -r '.[0].contents // empty')
+        # Save the raw JSON to a file to avoid GitHub Actions template processing that strips backticks
+        echo '${{ steps.parse-changelog.outputs.result }}' > /tmp/changelog_raw.json
+
+        CHANGELOG_CONTENTS=$(cat /tmp/changelog_raw.json | jq -r '.[0].contents // empty')
         echo "Changelog contents: (content length: ${#CHANGELOG_CONTENTS} characters)"
 
         if [[ -z "$CHANGELOG_CONTENTS" ]]; then
@@ -263,29 +266,48 @@ runs:
           exit 1
         fi
 
-        # Use a delimiter to safely handle special characters in the changelog contents
-        {
-          echo "value<<EOF"
-          echo "$CHANGELOG_CONTENTS"
-          echo "EOF"
-        } >> $GITHUB_OUTPUT
+        # Save the extracted content to a file to preserve special characters
+        echo "$CHANGELOG_CONTENTS" > /tmp/changelog_content.txt
+
+        # Set a simple flag in GITHUB_OUTPUT
+        echo "value=success" >> $GITHUB_OUTPUT
 
     - name: Set environment variables
       shell: bash
       run: |
-        echo "GITHUB_TOKEN=$([ ! -z "${{ inputs.github-token }}"] && echo "${{ inputs.github-token }}" || echo "${{ github.token }}")" >> $GITHUB_ENV
+        echo "GITHUB_TOKEN=$([ ! -z "${{ inputs.github-token }}" ] && echo "${{ inputs.github-token }}" || echo "${{ github.token }}")" >> $GITHUB_ENV
         echo "SKIP_BUILD=$([ "${{ inputs.skip-build }}" = "true" ] && echo "true" || echo "false")" >> $GITHUB_ENV
         echo "SKIP_COMPOSER_INSTALL=$([ "${{ inputs.skip-composer-install }}" = "true" ] && echo "true" || echo "false")" >> $GITHUB_ENV
         echo "SKIP_NPM_INSTALL=$([ "${{ inputs.skip-npm-install }}" = "true" ] && echo "true" || echo "false")" >> $GITHUB_ENV
         echo "BUILT_BRANCH=${{ steps.extract-branch.outputs.value }}-built" >> $GITHUB_ENV
         echo "VERSION_TAG=$([ ! -z "${{ steps.extract-tag-name.outputs.value }}" ] && echo "${{ steps.extract-tag-name.outputs.value }}" || echo "false")" >> $GITHUB_ENV
-        echo "USE_CHANGELOG_NOTES=$([ "${{ inputs.use-changelog-notes }}" = "true" ] && [ ! -z "${{ steps.extract-changelog-notes.outputs.value }}" ] && echo "true" || echo "false")" >> $GITHUB_ENV
-        # Use a delimiter to safely handle special characters in the changelog contents
-        {
-          echo "CHANGELOG_CONTENTS<<EOF"
-          echo "${{ steps.extract-changelog-notes.outputs.value }}"
-          echo "EOF"
-        } >> $GITHUB_ENV
+        # Read changelog contents from file to preserve special characters like backticks
+        if [[ "${{ inputs.use-changelog-notes }}" == "true" && "${{ steps.extract-changelog-notes.outputs.value }}" == "success" ]]; then
+          if [ -f /tmp/changelog_content.txt ]; then
+            CHANGELOG_CONTENTS=$(cat /tmp/changelog_content.txt)
+
+            if [[ -n "$CHANGELOG_CONTENTS" ]]; then
+              echo "USE_CHANGELOG_NOTES=true" >> $GITHUB_ENV
+              {
+                echo "CHANGELOG_CONTENTS<<EOF"
+                echo "$CHANGELOG_CONTENTS"
+                echo "EOF"
+              } >> $GITHUB_ENV
+            else
+              echo "USE_CHANGELOG_NOTES=false" >> $GITHUB_ENV
+              echo "CHANGELOG_CONTENTS=" >> $GITHUB_ENV
+            fi
+
+            # Clean up temporary files
+            rm -f /tmp/changelog_raw.json /tmp/changelog_content.txt
+          else
+            echo "USE_CHANGELOG_NOTES=false" >> $GITHUB_ENV
+            echo "CHANGELOG_CONTENTS=" >> $GITHUB_ENV
+          fi
+        else
+          echo "USE_CHANGELOG_NOTES=false" >> $GITHUB_ENV
+          echo "CHANGELOG_CONTENTS=" >> $GITHUB_ENV
+        fi
 
     - name: Composer Install
       if: inputs.skip-composer-install != 'true'
