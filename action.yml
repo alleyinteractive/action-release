@@ -62,6 +62,10 @@ runs:
     #   id: extract-data-name
     #   Outputted to value="..."
     #   Referenced as steps.extract-data-name.outputs.value.
+    #
+    # NOTE: To avoid shell injection, step outputs and inputs that can contain
+    # arbitrary content (changelog text, branch names, etc.) are passed to
+    # scripts via `env:` rather than interpolated with ${{ }} inside `run:`.
 
     - name: Extract plugin version
       shell: bash
@@ -118,7 +122,7 @@ runs:
 
         echo "Package Version: $PACKAGE_VERSION"
 
-        if [ -z $PACKAGE_VERSION ]; then
+        if [ -z "$PACKAGE_VERSION" ]; then
           echo "value=false" >> $GITHUB_OUTPUT
         else
           echo "value=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
@@ -132,8 +136,10 @@ runs:
     - name: Check if this is a built branch
       id: extract-is-built-branch
       shell: bash
+      env:
+        CURRENT_BRANCH: '${{ steps.extract-branch.outputs.value }}'
       run: |
-        if [[ ${{ steps.extract-branch.outputs.value }} =~ -built$ ]]; then
+        if [[ "$CURRENT_BRANCH" =~ -built$ ]]; then
           echo "value=true" >> $GITHUB_OUTPUT
         else
           echo "value=false" >> $GITHUB_OUTPUT
@@ -143,14 +149,18 @@ runs:
       id: extract-tag-name
       shell: bash
       if: steps.extract-version.outputs.value != 'false'
-      run: echo "value=v${{ steps.extract-version.outputs.value }}" >> $GITHUB_OUTPUT
+      env:
+        PACKAGE_VERSION: '${{ steps.extract-version.outputs.value }}'
+      run: echo "value=v${PACKAGE_VERSION}" >> $GITHUB_OUTPUT
 
     - name: Check if the version already exists as a tag
       id: extract-tag-exists
       shell: bash
       if: steps.extract-version.outputs.value != 'false' && steps.extract-tag-name.outputs.value
+      env:
+        TAG_NAME: '${{ steps.extract-tag-name.outputs.value }}'
       run: |
-        if [ -z "$(git tag -l ${{ steps.extract-tag-name.outputs.value }})" ]; then
+        if [ -z "$(git tag -l "$TAG_NAME")" ]; then
           echo "value=false" >> $GITHUB_OUTPUT
         else
           echo "value=true" >> $GITHUB_OUTPUT
@@ -246,19 +256,23 @@ runs:
       if: inputs.use-changelog-notes == 'true' && steps.extract-version.outputs.value != 'false' && steps.parse-changelog.outputs.result != ''
       id: extract-changelog-notes
       shell: bash
+      env:
+        PACKAGE_VERSION: '${{ steps.extract-version.outputs.value }}'
+        PARSE_CHANGELOG_RESULT: ${{ steps.parse-changelog.outputs.result }}
       run: |
         if [ ! -f CHANGELOG.md ]; then
           echo "🚨 CHANGELOG.md file not found. Skipping changelog extraction."
           exit 0
         fi
 
-        echo "Using changelog notes for version ${{ steps.extract-version.outputs.value }}"
-        echo "Parsed changelog notes: (JSON length: $(echo '${{ steps.parse-changelog.outputs.result }}' | wc -c) characters)"
+        echo "Using changelog notes for version $PACKAGE_VERSION"
+        echo "Parsed changelog notes: (JSON length: ${#PARSE_CHANGELOG_RESULT} characters)"
 
-        # Save the raw JSON to a file to avoid GitHub Actions template processing that strips backticks
-        echo '${{ steps.parse-changelog.outputs.result }}' > /tmp/changelog_raw.json
+        # Save the raw JSON to a file. printf '%s' writes the value verbatim
+        # with no escape-sequence processing.
+        printf '%s' "$PARSE_CHANGELOG_RESULT" > /tmp/changelog_raw.json
 
-        CHANGELOG_CONTENTS=$(cat /tmp/changelog_raw.json | jq -r '.[0].contents // empty')
+        CHANGELOG_CONTENTS=$(jq -r '.[0].contents // empty' /tmp/changelog_raw.json)
         echo "Changelog contents: (content length: ${#CHANGELOG_CONTENTS} characters)"
 
         if [[ -z "$CHANGELOG_CONTENTS" ]]; then
@@ -267,31 +281,46 @@ runs:
         fi
 
         # Save the extracted content to a file to preserve special characters
-        echo "$CHANGELOG_CONTENTS" > /tmp/changelog_content.txt
+        printf '%s\n' "$CHANGELOG_CONTENTS" > /tmp/changelog_content.txt
 
         # Set a simple flag in GITHUB_OUTPUT
         echo "value=success" >> $GITHUB_OUTPUT
 
     - name: Set environment variables
       shell: bash
+      env:
+        INPUT_GITHUB_TOKEN: '${{ inputs.github-token }}'
+        DEFAULT_GITHUB_TOKEN: '${{ github.token }}'
+        INPUT_SKIP_BUILD: '${{ inputs.skip-build }}'
+        INPUT_SKIP_COMPOSER_INSTALL: '${{ inputs.skip-composer-install }}'
+        INPUT_SKIP_NPM_INSTALL: '${{ inputs.skip-npm-install }}'
+        INPUT_USE_CHANGELOG_NOTES: '${{ inputs.use-changelog-notes }}'
+        CURRENT_BRANCH: '${{ steps.extract-branch.outputs.value }}'
+        TAG_NAME: '${{ steps.extract-tag-name.outputs.value }}'
+        CHANGELOG_EXTRACT_RESULT: '${{ steps.extract-changelog-notes.outputs.value }}'
       run: |
-        echo "GITHUB_TOKEN=$([ ! -z "${{ inputs.github-token }}" ] && echo "${{ inputs.github-token }}" || echo "${{ github.token }}")" >> $GITHUB_ENV
-        echo "SKIP_BUILD=$([ "${{ inputs.skip-build }}" = "true" ] && echo "true" || echo "false")" >> $GITHUB_ENV
-        echo "SKIP_COMPOSER_INSTALL=$([ "${{ inputs.skip-composer-install }}" = "true" ] && echo "true" || echo "false")" >> $GITHUB_ENV
-        echo "SKIP_NPM_INSTALL=$([ "${{ inputs.skip-npm-install }}" = "true" ] && echo "true" || echo "false")" >> $GITHUB_ENV
-        echo "BUILT_BRANCH=${{ steps.extract-branch.outputs.value }}-built" >> $GITHUB_ENV
-        echo "VERSION_TAG=$([ ! -z "${{ steps.extract-tag-name.outputs.value }}" ] && echo "${{ steps.extract-tag-name.outputs.value }}" || echo "false")" >> $GITHUB_ENV
+        echo "GITHUB_TOKEN=$([ -n "$INPUT_GITHUB_TOKEN" ] && echo "$INPUT_GITHUB_TOKEN" || echo "$DEFAULT_GITHUB_TOKEN")" >> $GITHUB_ENV
+        echo "SKIP_BUILD=$([ "$INPUT_SKIP_BUILD" = "true" ] && echo "true" || echo "false")" >> $GITHUB_ENV
+        echo "SKIP_COMPOSER_INSTALL=$([ "$INPUT_SKIP_COMPOSER_INSTALL" = "true" ] && echo "true" || echo "false")" >> $GITHUB_ENV
+        echo "SKIP_NPM_INSTALL=$([ "$INPUT_SKIP_NPM_INSTALL" = "true" ] && echo "true" || echo "false")" >> $GITHUB_ENV
+        echo "BUILT_BRANCH=${CURRENT_BRANCH}-built" >> $GITHUB_ENV
+        echo "VERSION_TAG=$([ -n "$TAG_NAME" ] && echo "$TAG_NAME" || echo "false")" >> $GITHUB_ENV
+
         # Read changelog contents from file to preserve special characters like backticks
-        if [[ "${{ inputs.use-changelog-notes }}" == "true" && "${{ steps.extract-changelog-notes.outputs.value }}" == "success" ]]; then
+        if [[ "$INPUT_USE_CHANGELOG_NOTES" == "true" && "$CHANGELOG_EXTRACT_RESULT" == "success" ]]; then
           if [ -f /tmp/changelog_content.txt ]; then
             CHANGELOG_CONTENTS=$(cat /tmp/changelog_content.txt)
 
             if [[ -n "$CHANGELOG_CONTENTS" ]]; then
               echo "USE_CHANGELOG_NOTES=true" >> $GITHUB_ENV
+
+              # Use a random heredoc delimiter so changelog content can never
+              # contain the delimiter line and break out of the value.
+              DELIMITER="CHANGELOG_EOF_$(openssl rand -hex 8 2>/dev/null || date +%s%N)"
               {
-                echo "CHANGELOG_CONTENTS<<EOF"
+                echo "CHANGELOG_CONTENTS<<${DELIMITER}"
                 echo "$CHANGELOG_CONTENTS"
-                echo "EOF"
+                echo "${DELIMITER}"
               } >> $GITHUB_ENV
             else
               echo "USE_CHANGELOG_NOTES=false" >> $GITHUB_ENV
@@ -362,7 +391,7 @@ runs:
           git ls-files -i -c --exclude-standard . | xargs git rm --cached
         fi
 
-        git checkout -b $BUILT_BRANCH
+        git checkout -b "$BUILT_BRANCH"
 
         git add -A
 
@@ -379,30 +408,31 @@ runs:
       shell: bash
       env:
         PREVIOUS_TAG_VERSION: '${{ steps.extract-previous-tag.outputs.value }}'
+        DRAFT_RELEASE: '${{ inputs.draft }}'
       run: |
         echo "USE_CHANGELOG_NOTES: $USE_CHANGELOG_NOTES"
         echo "PREVIOUS_TAG_VERSION: $PREVIOUS_TAG_VERSION"
-        echo "DRAFT_RELEASE: ${{ inputs.draft }}"
+        echo "DRAFT_RELEASE: $DRAFT_RELEASE"
 
         if [[ "$USE_CHANGELOG_NOTES" == "true" ]] && [[ -n "$CHANGELOG_CONTENTS" ]]; then
-          echo "$CHANGELOG_CONTENTS" > /tmp/release-notes.md
+          printf '%s\n' "$CHANGELOG_CONTENTS" > /tmp/release-notes.md
           cat /tmp/release-notes.md
 
-          if [[ $DRAFT_RELEASE == "true" ]]; then
-            gh release create $VERSION_TAG --target "$BUILT_BRANCH" -t "$VERSION_TAG" -F /tmp/release-notes.md -d --latest
+          if [[ "$DRAFT_RELEASE" == "true" ]]; then
+            gh release create "$VERSION_TAG" --target "$BUILT_BRANCH" -t "$VERSION_TAG" -F /tmp/release-notes.md -d --latest
           else
-            gh release create $VERSION_TAG --target "$BUILT_BRANCH" -t "$VERSION_TAG" -F  /tmp/release-notes.md --latest
+            gh release create "$VERSION_TAG" --target "$BUILT_BRANCH" -t "$VERSION_TAG" -F /tmp/release-notes.md --latest
           fi
         elif [ "$PREVIOUS_TAG_VERSION" == "false" ]; then
-          if [[ $DRAFT_RELEASE == "true" ]]; then
-            gh release create $VERSION_TAG --target "$BUILT_BRANCH" -t "$VERSION_TAG" --generate-notes -d --latest
+          if [[ "$DRAFT_RELEASE" == "true" ]]; then
+            gh release create "$VERSION_TAG" --target "$BUILT_BRANCH" -t "$VERSION_TAG" --generate-notes -d --latest
           else
-            gh release create $VERSION_TAG --target "$BUILT_BRANCH" -t "$VERSION_TAG" --generate-notes --latest
+            gh release create "$VERSION_TAG" --target "$BUILT_BRANCH" -t "$VERSION_TAG" --generate-notes --latest
           fi
         else
-          if [[ $DRAFT_RELEASE == "true" ]]; then
-            gh release create $VERSION_TAG --target "$BUILT_BRANCH" -t "$VERSION_TAG" --generate-notes -d --latest --notes-start-tag "$PREVIOUS_TAG_VERSION"
+          if [[ "$DRAFT_RELEASE" == "true" ]]; then
+            gh release create "$VERSION_TAG" --target "$BUILT_BRANCH" -t "$VERSION_TAG" --generate-notes -d --latest --notes-start-tag "$PREVIOUS_TAG_VERSION"
           else
-            gh release create $VERSION_TAG --target "$BUILT_BRANCH" -t "$VERSION_TAG" --generate-notes --latest --notes-start-tag "$PREVIOUS_TAG_VERSION"
+            gh release create "$VERSION_TAG" --target "$BUILT_BRANCH" -t "$VERSION_TAG" --generate-notes --latest --notes-start-tag "$PREVIOUS_TAG_VERSION"
           fi
         fi
